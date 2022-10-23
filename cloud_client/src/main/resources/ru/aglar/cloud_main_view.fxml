@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import javafx.geometry.Insets?>
+<VBox prefHeight="400.0" prefWidth="600.0"
+      xmlns="http://javafx.com/javafx/11.0.2" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ru.aglar.CloudController">
+    <MenuBar>
+        <Menu text="File">
+            <MenuItem fx:id="exitMenuItem" text="Exit"/>
+        </Menu>
+    </MenuBar>
+    <HBox alignment="CENTER" spacing="5">
+        <VBox>
+            <Label text="Local files"/>
+            <HBox>
+                <ComboBox fx:id="localDiskComboBox"/>
+                <TextField fx:id="localPathTextField" HBox.hgrow="ALWAYS" editable="false"/>
+                <Button fx:id="localUpButton" text="Up"/>
+            </HBox>
+            <TableView fx:id="localFilesTable" VBox.vgrow="ALWAYS" />
+        </VBox>
+        <VBox alignment="CENTER" spacing="5">
+            <Button fx:id="sendButton" text="&gt;&gt;" />
+            <Button fx:id="downloadButton" text="&lt;&lt;"/>
+        </VBox>
+        <VBox>
+            <Label text="Cloud files"/>
+            <TextField fx:id="remoteAddressTextField" HBox.hgrow="ALWAYS" editable="false"/>
+            <TableView fx:id="remoteFilesTable" VBox.vgrow="ALWAYS" />
+        </VBox>
+        <padding>
+            <Insets bottom="10" top="10" right="10" left="10"/>
+        </padding>
+    </HBox>
+
+</VBox>
