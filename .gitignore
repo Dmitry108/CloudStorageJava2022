@@ -1,0 +1,12 @@
+build/*
+target/*
+.idea/*
+cloud_client/build/*
+cloud_client/target/*
+cloud_client/.idea/*
+cloud_common/build/*
+cloud_common/target/*
+cloud_common/.idea/*
+cloud_server/build/*
+cloud_server/target/*
+cloud_server/.idea/*
