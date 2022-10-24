@@ -20,7 +20,7 @@
                 <TextField fx:id="localPathTextField" HBox.hgrow="ALWAYS" editable="false"/>
                 <Button fx:id="localUpButton" text="Up"/>
             </HBox>
-            <TableView fx:id="localFilesTable" VBox.vgrow="ALWAYS" />
+            <TableView fx:id="localFilesTable" VBox.vgrow="ALWAYS"/>
         </VBox>
         <VBox alignment="CENTER" spacing="5">
             <Button fx:id="sendButton" text="&gt;&gt;" />
