@@ -12,6 +12,7 @@ import javafx.scene.control.*;
 import javafx.util.Callback;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.URL;
@@ -24,17 +25,20 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @FXML public Button sendButton;
 
     private NetIo net;
+    private File clientDir;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         try {
             Socket socket = new Socket("localhost", 888);
-            this.net = new NetIo(socket);
+            this.net = new NetIo(socket, this::onReceiveMessage);
+            this.clientDir = new File("cloud_client", "local_storage");
             Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
             exitMenuItem.setOnAction(this);
-            initFileTable(localFilesTable, new File("cloud_client", "local_storage"));
+            sendButton.setOnAction(this);
+            initFileTable(localFilesTable, clientDir);
         } catch (IOException e) {
-            new Alert(Alert.AlertType.ERROR, "Connection is not established!", ButtonType.OK).show();
+            showException("Connection is not established!");
             e.printStackTrace();
         }
     }
@@ -78,9 +82,40 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
 
     @Override
     public void handle(ActionEvent event) {
-        if (event.getSource().equals(exitMenuItem)) {
+        Object source = event.getSource();
+        if (source.equals(exitMenuItem)) {
             exit();
+        } else if (source.equals(sendButton)) {
+            if (localFilesTable.getSelectionModel().getSelectedItem() != null) {
+                sendFile(new File(clientDir, localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
+            }
         }
+    }
+
+    private void sendFile(File file) {
+        try {
+            net.sendMessage("$file");
+            net.sendMessage(file.getName().replaceAll(" +", "_"));
+            net.sendFileSize(file.length());
+            try (FileInputStream fis = new FileInputStream(file)){
+                int read;
+                byte[] buf = new byte[4096];
+                while ((read = fis.read(buf)) > 0) {
+                    net.sendFile(buf, 0, read);
+                }
+            }
+        } catch (IOException e) {
+            showException("Error on sending file!");
+            e.printStackTrace();
+        }
+    }
+
+    private void onReceiveMessage(String message) {
+        System.out.println(message);
+    }
+
+    private void showException(String message) {
+        new Alert(Alert.AlertType.ERROR, message, ButtonType.OK).show();
     }
 
     public void exit() {
