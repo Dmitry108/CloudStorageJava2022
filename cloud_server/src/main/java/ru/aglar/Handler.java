@@ -1,22 +1,23 @@
 package ru.aglar;
 
-import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 
 public class Handler implements Runnable, Closeable {
 
+    private static final int SIZE = 4096;
+
     private Socket socket;
     private DataInputStream is;
     private DataOutputStream os;
+    private File serverDir;
 
     public Handler(Socket socket) {
         try {
             this.socket = socket;
             this.is = new DataInputStream(socket.getInputStream());
             this.os = new DataOutputStream(socket.getOutputStream());
+            this.serverDir = new File("cloud_server", "cloud_storage");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -27,7 +28,21 @@ public class Handler implements Runnable, Closeable {
         while (true) {
             try {
                 String command = is.readUTF();
-                if (command.equals("quit")) {
+                if (command.equals("$file")) {
+                    String filename = is.readUTF();
+                    long size = is.readLong();
+                    byte[] buf = new byte[SIZE];
+                    try (FileOutputStream fos = new FileOutputStream(new File(serverDir, filename))) {
+                        for (int i = 0, read; i < (size + SIZE - 1) / SIZE; i++) {
+                            read = is.read(buf);
+                            fos.write(buf, 0, read);
+                        }
+                        os.writeUTF("Success! File received on server!");
+                    } catch (IOException e) {
+                        os.writeUTF("Error on receiving file!");
+                        e.printStackTrace();
+                    }
+                } else if (command.equals("quit")) {
                     close();
                     break;
                 }
