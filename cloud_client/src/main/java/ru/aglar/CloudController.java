@@ -1,5 +1,7 @@
 package ru.aglar;
 
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -17,30 +19,33 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CountDownLatch;
 
-public class CloudController implements Initializable, EventHandler<ActionEvent> {
+public class CloudController implements Initializable, EventHandler<ActionEvent>, ViewCallback {
     @FXML public TableView<FileInfo> localFilesTable;
     @FXML public TableView<FileInfo> remoteFilesTable;
     @FXML public MenuItem exitMenuItem;
     @FXML public Button sendButton;
 
-    private NetIo net;
+//    private Network net;
     private File clientDir;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        CountDownLatch cdl = new CountDownLatch(1);
+        new Thread(() -> {
+            Network.getInstance().start(this, cdl);
+        }).start();
         try {
-            Socket socket = new Socket("localhost", 888);
-            this.net = new NetIo(socket, this::onReceiveMessage);
-            this.clientDir = new File("cloud_client", "local_storage");
-            Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
-            exitMenuItem.setOnAction(this);
-            sendButton.setOnAction(this);
-            initFileTable(localFilesTable, clientDir);
-        } catch (IOException e) {
-            showException("Connection is not established!");
+            cdl.await();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        this.clientDir = new File("local_storage");
+        Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
+        exitMenuItem.setOnAction(this);
+        sendButton.setOnAction(this);
+        initFileTable(localFilesTable, clientDir);
     }
 
     private void initFileTable(TableView<FileInfo> table, File file) {
@@ -93,24 +98,11 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     }
 
     private void sendFile(File file) {
-        try {
-            net.sendMessage("$file");
-            net.sendMessage(file.getName().replaceAll(" +", "_"));
-            net.sendFileSize(file.length());
-            try (FileInputStream fis = new FileInputStream(file)){
-                int read;
-                byte[] buf = new byte[4096];
-                while ((read = fis.read(buf)) > 0) {
-                    net.sendFile(buf, 0, read);
-                }
-            }
-        } catch (IOException e) {
-            showException("Error on sending file!");
-            e.printStackTrace();
-        }
+        Network.getInstance().sendFile(file.toPath(), null);
     }
 
-    private void onReceiveMessage(String message) {
+    @Override
+    public void onReceiveMessage(String message) {
         System.out.println(message);
     }
 
@@ -119,11 +111,7 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     }
 
     public void exit() {
-        try {
-            net.close();
-            Platform.exit();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Network.getInstance().stop();
+        Platform.exit();
     }
 }
