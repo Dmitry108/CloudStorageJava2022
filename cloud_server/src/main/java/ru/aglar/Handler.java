@@ -39,6 +39,12 @@ public class Handler implements Runnable, Closeable {
                         }
                         os.writeUTF("Success! File received on server!");
                     } catch (IOException e) {
+                        int n;
+                        for (int i = 0, read; i < (size + SIZE - 1) / SIZE; i++) {
+                            read = is.read(buf);
+
+                        }
+                        System.out.println("fff");
                         os.writeUTF("Error on receiving file!");
                         e.printStackTrace();
                     }
