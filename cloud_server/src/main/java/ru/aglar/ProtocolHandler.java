@@ -8,7 +8,13 @@ import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class ProtocolHandler extends ChannelInboundHandlerAdapter {
 
@@ -40,8 +46,11 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
                         status = Status.FILENAME_LENGTH;
                         receivedFileSize = 0;
                         break;
+                    case CloudProtocol.FILES_STRUCTURE_REQUEST:
+                        status = Status.FILES_LIST;
+                        break;
                     default:
-                        ctx.writeAndFlush(CloudProtocol.transferMessageToByteBuf("Unknown format!"));
+                        ctx.writeAndFlush(CloudProtocol.transferMessageToByteBuf("Unknown format on server!"));
                 }
             }
             if (status == Status.FILENAME_LENGTH) {
@@ -82,6 +91,16 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
                     e.printStackTrace();
                 }
             }
+            if (status == Status.FILES_LIST) {
+                Path path = Paths.get("server_storage");
+                String filenames = Files.list(path)
+                        .filter(p -> !Files.isDirectory(p))
+                        .map(p -> p.getFileName().toString())
+//                                .collect(Collectors.toList());
+                        .collect(Collectors.joining(CloudProtocol.DELIMITER));
+                ctx.writeAndFlush(CloudProtocol.transferStringOfFilenamesToByteBuf(filenames));
+                status = Status.FREE;
+            }
         }
         buf.release();
     }
@@ -93,6 +112,6 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
     }
 
     private enum Status {
-        FREE, FILENAME_LENGTH, FILENAME, FILE_SIZE, FILE
+        FREE, FILENAME_LENGTH, FILENAME, FILE_SIZE, FILE, FILES_LIST
     }
 }
