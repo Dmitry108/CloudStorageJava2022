@@ -20,7 +20,7 @@ public class CloudServer {
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            socketChannel.pipeline().addLast(new ProtocolHandler());
+                            socketChannel.pipeline().addLast(new SimpleProtocolHandler());
                         }
                     })
                     .childOption(ChannelOption.SO_KEEPALIVE, true);

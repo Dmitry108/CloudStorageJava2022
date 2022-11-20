@@ -1,11 +1,8 @@
 package ru.aglar;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -14,9 +11,7 @@ import javafx.scene.control.*;
 import javafx.util.Callback;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.Socket;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +26,6 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @FXML public MenuItem exitMenuItem;
     @FXML public Button sendButton;
 
-//    private Network net;
     private Path clientDir;
 
     @Override
@@ -50,10 +44,12 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
         exitMenuItem.setOnAction(this);
         sendButton.setOnAction(this);
-        initFileTable(localFilesTable, clientDir);
+        initFileTable(localFilesTable);
+        initFileTable(remoteFilesTable);
+        fillLocalFileTable();
     }
 
-    private void initFileTable(TableView<FileInfo> table, Path path) {
+    private void initFileTable(TableView<FileInfo> table) {
         TableColumn<FileInfo, String> filenameColumn = new TableColumn<>("Name");
         filenameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getFilename()));
         TableColumn<FileInfo, Long> sizeColumn = new TableColumn<>("Size");
@@ -72,20 +68,18 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         });
         table.getColumns().addAll(filenameColumn, sizeColumn);
         table.getSortOrder().add(sizeColumn);
+    }
+
+    public void fillRemoteFileTable(List<FileInfo> files) {
+        files.forEach(file -> remoteFilesTable.getItems().add(file));
+    }
+
+    public void fillLocalFileTable() {
         try {
-            Files.list(path).forEach(p -> localFilesTable.getItems().add(new FileInfo(p.toFile())));
+            Files.list(clientDir).forEach(p -> localFilesTable.getItems().add(new FileInfo(p.toFile())));
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private void initFileTable(TableView<FileInfo> table, List<String> filenames) {
-        TableColumn<FileInfo, String> filenameColumn = new TableColumn<>("Name");
-        filenameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getFilename()));
-        table.getColumns().addAll(filenameColumn);
-        filenames.forEach(filename -> {
-            remoteFilesTable.getItems().add(new FileInfo(filename, -1L));
-        });
     }
 
     @Override
@@ -110,8 +104,8 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     }
 
     @Override
-    public void filledRemoteFiles(List<String> filenames) {
-        initFileTable(remoteFilesTable, filenames);
+    public void fillRemoteFiles(List<FileInfo> files) {
+        fillRemoteFileTable(files);
     }
 
     private void showException(String message) {

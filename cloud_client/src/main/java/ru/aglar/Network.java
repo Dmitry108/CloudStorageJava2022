@@ -44,7 +44,6 @@ public class Network {
                     })
                     .option(ChannelOption.SO_KEEPALIVE, true);
             ChannelFuture future = bootstrap.connect().sync();
-            System.out.println("connect");
             cdl.countDown();
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {
