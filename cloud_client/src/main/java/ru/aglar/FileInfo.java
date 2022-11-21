@@ -11,6 +11,11 @@ public class FileInfo {
         this.size = file.isDirectory() ? -1L : file.length();
     }
 
+    public FileInfo(String filename, long size) {
+        this.filename = filename;
+        this.size = size;
+    }
+
     public String getFilename() {
         return filename;
     }

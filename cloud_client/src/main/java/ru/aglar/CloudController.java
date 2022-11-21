@@ -18,6 +18,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
 
@@ -28,7 +32,7 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @FXML public Button sendButton;
 
 //    private Network net;
-    private File clientDir;
+    private Path clientDir;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -41,28 +45,19 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        this.clientDir = new File("local_storage");
+        Network.getInstance().getSocketChannel().writeAndFlush(CloudProtocol.getFilesStructureRequest());
+        this.clientDir = Paths.get("local_storage");
         Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
         exitMenuItem.setOnAction(this);
         sendButton.setOnAction(this);
         initFileTable(localFilesTable, clientDir);
     }
 
-    private void initFileTable(TableView<FileInfo> table, File file) {
+    private void initFileTable(TableView<FileInfo> table, Path path) {
         TableColumn<FileInfo, String> filenameColumn = new TableColumn<>("Name");
-        filenameColumn.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<FileInfo, String>, ObservableValue<String>>() {
-            @Override
-            public ObservableValue<String> call(TableColumn.CellDataFeatures<FileInfo, String> param) {
-                return new SimpleStringProperty(param.getValue().getFilename());
-            }
-        });
+        filenameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getFilename()));
         TableColumn<FileInfo, Long> sizeColumn = new TableColumn<>("Size");
-        sizeColumn.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<FileInfo, Long>, ObservableValue<Long>>() {
-            @Override
-            public ObservableValue<Long> call(TableColumn.CellDataFeatures<FileInfo, Long> param) {
-                return new SimpleObjectProperty<Long>(param.getValue().getSize());
-            }
-        });
+        sizeColumn.setCellValueFactory(param -> new SimpleObjectProperty<Long>(param.getValue().getSize()));
         sizeColumn.setCellFactory(new Callback<TableColumn<FileInfo, Long>, TableCell<FileInfo, Long>>() {
             @Override
             public TableCell<FileInfo, Long> call(TableColumn<FileInfo, Long> param) {
@@ -77,12 +72,20 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         });
         table.getColumns().addAll(filenameColumn, sizeColumn);
         table.getSortOrder().add(sizeColumn);
-        File[] files = file.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                localFilesTable.getItems().add(new FileInfo(f));
-            }
+        try {
+            Files.list(path).forEach(p -> localFilesTable.getItems().add(new FileInfo(p.toFile())));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    }
+
+    private void initFileTable(TableView<FileInfo> table, List<String> filenames) {
+        TableColumn<FileInfo, String> filenameColumn = new TableColumn<>("Name");
+        filenameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getFilename()));
+        table.getColumns().addAll(filenameColumn);
+        filenames.forEach(filename -> {
+            remoteFilesTable.getItems().add(new FileInfo(filename, -1L));
+        });
     }
 
     @Override
@@ -92,7 +95,7 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
             exit();
         } else if (source.equals(sendButton)) {
             if (localFilesTable.getSelectionModel().getSelectedItem() != null) {
-                sendFile(new File(clientDir, localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
+                sendFile(new File(clientDir.toFile(), localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
             }
         }
     }
@@ -104,6 +107,11 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @Override
     public void onReceiveMessage(String message) {
         System.out.println(message);
+    }
+
+    @Override
+    public void filledRemoteFiles(List<String> filenames) {
+        initFileTable(remoteFilesTable, filenames);
     }
 
     private void showException(String message) {
