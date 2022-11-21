@@ -1,5 +1,7 @@
 package ru.aglar;
 
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -19,31 +21,35 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
-public class CloudController implements Initializable, EventHandler<ActionEvent>, ViewCallback {
+public class CloudController implements Initializable, EventHandler<ActionEvent>, ResponseListener {
     @FXML public TableView<FileInfo> localFilesTable;
     @FXML public TableView<FileInfo> remoteFilesTable;
     @FXML public MenuItem exitMenuItem;
     @FXML public Button sendButton;
+    @FXML public Button downloadButton;
 
     private Path clientDir;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        this.clientDir = Paths.get("local_storage");
         CountDownLatch cdl = new CountDownLatch(1);
         new Thread(() -> {
-            Network.getInstance().start(this, cdl);
+            Network.getInstance().start(this, clientDir, cdl);
         }).start();
         try {
             cdl.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        Network.getInstance().getSocketChannel().writeAndFlush(CloudProtocol.getFilesStructureRequest());
-        this.clientDir = Paths.get("local_storage");
+        refreshRemoteFileTable();
         Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
         exitMenuItem.setOnAction(this);
         sendButton.setOnAction(this);
+        downloadButton.setOnAction(this);
         initFileTable(localFilesTable);
         initFileTable(remoteFilesTable);
         fillLocalFileTable();
@@ -71,7 +77,12 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     }
 
     public void fillRemoteFileTable(List<FileInfo> files) {
+        remoteFilesTable.getItems().clear();
         files.forEach(file -> remoteFilesTable.getItems().add(file));
+    }
+
+    public void refreshRemoteFileTable() {
+        Network.getInstance().getSocketChannel().writeAndFlush(CloudProtocol.getFilesStructureRequest());
     }
 
     public void fillLocalFileTable() {
@@ -89,23 +100,24 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
             exit();
         } else if (source.equals(sendButton)) {
             if (localFilesTable.getSelectionModel().getSelectedItem() != null) {
-                sendFile(new File(clientDir.toFile(), localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
+                sendFile(clientDir.resolve(localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
             }
         }
     }
 
-    private void sendFile(File file) {
-        Network.getInstance().sendFile(file.toPath(), null);
-    }
-
-    @Override
-    public void onReceiveMessage(String message) {
-        System.out.println(message);
-    }
-
-    @Override
-    public void fillRemoteFiles(List<FileInfo> files) {
-        fillRemoteFileTable(files);
+    private void sendFile(Path file) {
+        boolean isExists = remoteFilesTable.getItems().stream()
+                .anyMatch(fileInfo -> fileInfo.getFilename().equals(file.getFileName().toString()));
+        if (isExists) {
+            onMessageReceive("File with such name already exists on server!");
+        } else {
+            Network.getInstance().sendFile(file, new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    refreshRemoteFileTable();
+                }
+            });
+        }
     }
 
     private void showException(String message) {
@@ -115,5 +127,25 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     public void exit() {
         Network.getInstance().stop();
         Platform.exit();
+    }
+
+    @Override
+    public void onSuccess(Object response, Class<?> responseType) {
+
+    }
+
+    @Override
+    public void onReceiveFile(FileInfo fileInfo) {
+
+    }
+
+    @Override
+    public void onMessageReceive(String message) {
+        System.out.println(message);
+    }
+
+    @Override
+    public void onFileStructureReceive(List<FileInfo> filesList) {
+        fillRemoteFileTable(filesList);
     }
 }

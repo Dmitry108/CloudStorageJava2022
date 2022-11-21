@@ -5,7 +5,7 @@ import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +14,13 @@ public class BytesAnalyzer {
     private long expectedCountBytes = 0;
     private int counter;
     private Object object;
-    private BytesAcceptListener listener;
+    private final ResponseListener listener;
+    private final Path dir;
+
+    public BytesAnalyzer(Path dir, ResponseListener listener) {
+        this.dir = dir;
+        this.listener = listener;
+    }
 
     private void setControl(int stepOfOperation, long expectedCountBytes) {
         this.stepOfOperation = stepOfOperation;
@@ -35,14 +41,14 @@ public class BytesAnalyzer {
             counter = 0;
         } else if (stepOfOperation == 3) {
             //обработать ситуацию если файл уже существует
-            try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(Paths.get("server_storage",
-                    ((FileInfo) object).getFilename()).toFile(), true))) {
+            try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(
+                    dir.resolve(((FileInfo) object).getFilename()).toFile(), true))) {
                 FileInfo fileInfo = (FileInfo) object;
                 while (buf.readableBytes() > 0) {
                     out.write(buf.readByte());
                     counter++;
                     if (fileInfo.getSize() == counter) {
-                        listener.onSuccess(String.format("File %s received on server!", fileInfo.getFilename()));
+                        listener.onReceiveFile(fileInfo);
                         setControl(0, 0);
                         return true;
                     }
@@ -60,8 +66,7 @@ public class BytesAnalyzer {
         return expectedCountBytes;
     }
 
-    public void startOperation(byte cmd, BytesAcceptListener listener) {
-        this.listener = listener;
+    public void startOperation(byte cmd) {
         stepOfOperation = 1;
         if (cmd == CloudProtocol.ACCEPT_FILE) {
             expectedCountBytes = 4;
@@ -83,7 +88,7 @@ public class BytesAnalyzer {
             buf.readBytes(messageBytes);
             ((StringBuffer) object).append(new String(messageBytes, StandardCharsets.UTF_8));
             setControl(0, 0);
-            listener.onSuccess(((StringBuffer) object).toString());
+            listener.onMessageReceive(((StringBuffer) object).toString());
             return true;
         }
         return false;
@@ -94,7 +99,7 @@ public class BytesAnalyzer {
             counter = buf.readInt();
             if (counter == 0) {
                 setControl(0, 0);
-                listener.onSuccess(object);
+                listener.onFileStructureReceive((List<FileInfo>) object);
                 return true;
             }
             setControl(2, 4);
@@ -108,7 +113,7 @@ public class BytesAnalyzer {
             list.add(new FileInfo(new String(filenameBytes, StandardCharsets.UTF_8), size));
             if (counter == list.size()) {
                 setControl(0, 0);
-                listener.onSuccess(object);
+                listener.onFileStructureReceive((List<FileInfo>) object);
                 return true;
             }
             setControl(2, 4);

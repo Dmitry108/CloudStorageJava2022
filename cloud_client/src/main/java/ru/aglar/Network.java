@@ -28,7 +28,7 @@ public class Network {
         return instance;
     }
 
-    public void start(ViewCallback view, CountDownLatch cdl) {
+    public void start(ResponseListener listener, Path storagePath, CountDownLatch cdl) {
         EventLoopGroup group = new NioEventLoopGroup();
         try {
             Bootstrap bootstrap = new Bootstrap();
@@ -38,7 +38,7 @@ public class Network {
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel channel) throws Exception {
-                            channel.pipeline().addLast(new ProtocolHandler(view));
+                            channel.pipeline().addLast(new ClientProtocolHandler(storagePath, listener));
                             instance.socketChannel = channel;
                         }
                     })

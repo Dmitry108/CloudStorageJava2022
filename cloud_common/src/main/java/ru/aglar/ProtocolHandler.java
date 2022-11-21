@@ -3,31 +3,25 @@ package ru.aglar;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class SimpleProtocolHandler extends ChannelInboundHandlerAdapter {
+public class ProtocolHandler extends ChannelInboundHandlerAdapter {
 
     private Status status = Status.FREE;
 
-    private final static Path SERVER_PATH = Paths.get("server_storage");
-    private final BytesAnalyzer analyzer = new BytesAnalyzer();
-
+    private final Path storagePath;
+    private final BytesAnalyzer analyzer;
     private Function<ByteBuf, Boolean> function;
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("Client connected...");
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("Client disconnected...");
+    public ProtocolHandler(Path storagePath, ResponseListener listener) {
+        this.storagePath = storagePath;
+        this.analyzer = new BytesAnalyzer(storagePath, listener);
     }
 
     @Override
@@ -39,17 +33,18 @@ public class SimpleProtocolHandler extends ChannelInboundHandlerAdapter {
                 status = Status.BUSY;
                 switch (cmd) {
                     case CloudProtocol.ACCEPT_FILE:
-                        analyzer.startOperation(cmd, message -> {
-                                ctx.writeAndFlush(CloudProtocol.transferMessageToByteBuf((String) message));
-                                status = Status.FREE;
-                        });
+                        analyzer.startOperation(cmd);
                         function = analyzer::acceptFile;
                         break;
                     case CloudProtocol.FILES_STRUCTURE_REQUEST:
                         sendFileStructure(ctx);
                         break;
+                    case CloudProtocol.FILES_STRUCTURE_RESPONSE:
+                        analyzer.startOperation(cmd);
+                        function = analyzer::getFileStructure;
+                        break;
                     case CloudProtocol.MESSAGE:
-                        analyzer.startOperation(cmd, System.out::println);
+                        analyzer.startOperation(cmd);
                         function = analyzer::acceptMessage;
                         break;
                     default:
@@ -72,7 +67,7 @@ public class SimpleProtocolHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void sendFileStructure(ChannelHandlerContext ctx) throws IOException {
-        List<FileInfo> files = Files.list(SERVER_PATH)
+        List<FileInfo> files = Files.list(storagePath)
                 .filter(p -> !Files.isDirectory(p))
                 .map(p -> new FileInfo(p.getFileName().toString(), p.toFile().length()))
                 .collect(Collectors.toList());

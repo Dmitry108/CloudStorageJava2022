@@ -9,7 +9,27 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
-public class CloudServer {
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+
+public class CloudServer implements ResponseListener {
+    private final static Path STORAGE_PATH = Paths.get("server_storage");
+    private SocketChannel channel;
+    private final ResponseListener listener = this;
+
+    static {
+            try {
+                if (Files.notExists(STORAGE_PATH)) {
+                    Files.createDirectory(STORAGE_PATH);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+    }
+
     public void start() {
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -20,7 +40,8 @@ public class CloudServer {
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            socketChannel.pipeline().addLast(new SimpleProtocolHandler());
+                            channel = socketChannel;
+                            socketChannel.pipeline().addLast(new ServerProtocolHandler(STORAGE_PATH, listener));
                         }
                     })
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
@@ -37,5 +58,26 @@ public class CloudServer {
 
     public static void main(String[] args) {
         new CloudServer().start();
+    }
+
+    @Override
+    public void onSuccess(Object response, Class<?> responseType) {
+
+    }
+
+    @Override
+    public void onReceiveFile(FileInfo fileInfo) {
+        channel.pipeline().writeAndFlush(CloudProtocol.transferMessageToByteBuf(
+                String.format("File %s received on server!", fileInfo.getFilename())));
+    }
+
+    @Override
+    public void onMessageReceive(String message) {
+        System.out.println(message);
+    }
+
+    @Override
+    public void onFileStructureReceive(List<FileInfo> filesList) {
+
     }
 }
