@@ -3,8 +3,8 @@ package ru.aglar;
 import java.io.File;
 
 public class FileInfo {
-    private final String filename;
-    private final long size;
+    private String filename;
+    private long size;
 
     public FileInfo(File file) {
         this.filename = file.getName();
@@ -16,11 +16,21 @@ public class FileInfo {
         this.size = size;
     }
 
+    public FileInfo() {}
+
     public String getFilename() {
         return filename;
     }
 
     public long getSize() {
         return size;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+
+    public void setSize(long size) {
+        this.size = size;
     }
 }

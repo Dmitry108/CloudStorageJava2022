@@ -5,7 +5,6 @@ import io.netty.channel.ChannelFutureListener;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -14,9 +13,7 @@ import javafx.scene.control.*;
 import javafx.util.Callback;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.Socket;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,36 +21,41 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
-public class CloudController implements Initializable, EventHandler<ActionEvent>, ViewCallback {
+public class CloudController implements Initializable, EventHandler<ActionEvent>, ResponseListener {
     @FXML public TableView<FileInfo> localFilesTable;
     @FXML public TableView<FileInfo> remoteFilesTable;
     @FXML public MenuItem exitMenuItem;
     @FXML public Button sendButton;
+    @FXML public Button downloadButton;
 
-//    private Network net;
     private Path clientDir;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        this.clientDir = Paths.get("local_storage");
         CountDownLatch cdl = new CountDownLatch(1);
         new Thread(() -> {
-            Network.getInstance().start(this, cdl);
+            Network.getInstance().start(this, clientDir, cdl);
         }).start();
         try {
             cdl.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        Network.getInstance().getSocketChannel().writeAndFlush(CloudProtocol.getFilesStructureRequest());
-        this.clientDir = Paths.get("local_storage");
+        refreshRemoteFileTable();
         Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
         exitMenuItem.setOnAction(this);
         sendButton.setOnAction(this);
-        initFileTable(localFilesTable, clientDir);
+        downloadButton.setOnAction(this);
+        initFileTable(localFilesTable);
+        initFileTable(remoteFilesTable);
+        fillLocalFileTable();
     }
 
-    private void initFileTable(TableView<FileInfo> table, Path path) {
+    private void initFileTable(TableView<FileInfo> table) {
         TableColumn<FileInfo, String> filenameColumn = new TableColumn<>("Name");
         filenameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getFilename()));
         TableColumn<FileInfo, Long> sizeColumn = new TableColumn<>("Size");
@@ -72,20 +74,23 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         });
         table.getColumns().addAll(filenameColumn, sizeColumn);
         table.getSortOrder().add(sizeColumn);
+    }
+
+    public void fillRemoteFileTable(List<FileInfo> files) {
+        remoteFilesTable.getItems().clear();
+        files.forEach(file -> remoteFilesTable.getItems().add(file));
+    }
+
+    public void refreshRemoteFileTable() {
+        Network.getInstance().getSocketChannel().writeAndFlush(CloudProtocol.getFilesStructureRequest());
+    }
+
+    public void fillLocalFileTable() {
         try {
-            Files.list(path).forEach(p -> localFilesTable.getItems().add(new FileInfo(p.toFile())));
+            Files.list(clientDir).forEach(p -> localFilesTable.getItems().add(new FileInfo(p.toFile())));
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private void initFileTable(TableView<FileInfo> table, List<String> filenames) {
-        TableColumn<FileInfo, String> filenameColumn = new TableColumn<>("Name");
-        filenameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getFilename()));
-        table.getColumns().addAll(filenameColumn);
-        filenames.forEach(filename -> {
-            remoteFilesTable.getItems().add(new FileInfo(filename, -1L));
-        });
     }
 
     @Override
@@ -95,23 +100,24 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
             exit();
         } else if (source.equals(sendButton)) {
             if (localFilesTable.getSelectionModel().getSelectedItem() != null) {
-                sendFile(new File(clientDir.toFile(), localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
+                sendFile(clientDir.resolve(localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
             }
         }
     }
 
-    private void sendFile(File file) {
-        Network.getInstance().sendFile(file.toPath(), null);
-    }
-
-    @Override
-    public void onReceiveMessage(String message) {
-        System.out.println(message);
-    }
-
-    @Override
-    public void filledRemoteFiles(List<String> filenames) {
-        initFileTable(remoteFilesTable, filenames);
+    private void sendFile(Path file) {
+        boolean isExists = remoteFilesTable.getItems().stream()
+                .anyMatch(fileInfo -> fileInfo.getFilename().equals(file.getFileName().toString()));
+        if (isExists) {
+            onMessageReceive("File with such name already exists on server!");
+        } else {
+            Network.getInstance().sendFile(file, new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    refreshRemoteFileTable();
+                }
+            });
+        }
     }
 
     private void showException(String message) {
@@ -121,5 +127,25 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     public void exit() {
         Network.getInstance().stop();
         Platform.exit();
+    }
+
+    @Override
+    public void onSuccess(Object response, Class<?> responseType) {
+
+    }
+
+    @Override
+    public void onReceiveFile(FileInfo fileInfo) {
+
+    }
+
+    @Override
+    public void onMessageReceive(String message) {
+        System.out.println(message);
+    }
+
+    @Override
+    public void onFileStructureReceive(List<FileInfo> filesList) {
+        fillRemoteFileTable(filesList);
     }
 }

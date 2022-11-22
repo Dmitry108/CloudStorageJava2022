@@ -12,3 +12,5 @@ cloud_server/target/*
 cloud_server/.idea/*
 cloud_server/cloud_storage/*
 cloud_client/local_storage/*
+local_storage/*
+server_storage/*
