@@ -16,6 +16,7 @@ public class ServerProtocolHandler extends ProtocolHandler {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        ctx.writeAndFlush(CloudProtocol.exit());
         System.out.println("Client disconnected...");
     }
 }

@@ -30,6 +30,7 @@ public class CloudProtocol {
     // -> имя файла -> 8 байт размер файла -> ...
     public final static byte MESSAGE = 21;
     //протокол: 1 байт команда -> 4 байта размер сообщения -> сообщение
+    public final static byte EXIT = 31;
 
     public static ByteBuf transferMessageToByteBuf(String message) {
         byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
@@ -73,5 +74,10 @@ public class CloudProtocol {
         ByteBuf buf = ByteBufAllocator.DEFAULT.directBuffer(1 + 4 + length);
         buf.writeByte(FILE_REQUEST).writeInt(length).writeBytes(filenameBytes);
         return buf;
+    }
+
+    public static ByteBuf exit() {
+        return ByteBufAllocator.DEFAULT.buffer().writeByte(EXIT);
+
     }
 }

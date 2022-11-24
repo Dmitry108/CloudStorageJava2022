@@ -27,6 +27,10 @@ public class BytesAnalyzer {
         this.expectedCountBytes = expectedCountBytes;
     }
 
+    public ResponseListener getListener() {
+        return listener;
+    }
+
     public boolean acceptFile(ByteBuf buf) {
         if (stepOfOperation == 1) {
             setControl(2, buf.readInt() + 8);

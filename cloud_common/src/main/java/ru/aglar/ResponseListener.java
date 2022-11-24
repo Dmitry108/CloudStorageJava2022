@@ -1,6 +1,5 @@
 package ru.aglar;
 
-import java.nio.file.Path;
 import java.util.List;
 
 public interface ResponseListener {
@@ -8,4 +7,5 @@ public interface ResponseListener {
     void onMessageReceive(String message);
     void onFileStructureReceive(List<FileInfo> filesList);
     void sendFile(String filename);
+    void onExit();
 }

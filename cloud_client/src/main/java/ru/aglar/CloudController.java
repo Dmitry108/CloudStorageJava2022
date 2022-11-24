@@ -10,13 +10,12 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseEvent;
 import javafx.util.Callback;
 
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
@@ -27,6 +26,9 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @FXML public MenuItem exitMenuItem;
     @FXML public Button sendButton;
     @FXML public Button downloadButton;
+    @FXML public ComboBox<String> localDiskComboBox;
+    @FXML public TextField localPathTextField;
+    @FXML public Button localUpButton;
 
     private Path clientDir;
 
@@ -42,14 +44,18 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        FileSystems.getDefault().getRootDirectories().forEach(disk ->
+                localDiskComboBox.getItems().add(disk.toString()));
+        refreshLocalFileTable(clientDir);
         refreshRemoteFileTable();
         Platform.runLater(() -> sendButton.getScene().getWindow().setOnCloseRequest(event -> this.exit()));
         exitMenuItem.setOnAction(this);
         sendButton.setOnAction(this);
         downloadButton.setOnAction(this);
+//        localUpButton.setOnAction(this);
+//        localFilesTable.setOnMouseClicked(this::onTableClicked);
         initFileTable(localFilesTable);
         initFileTable(remoteFilesTable);
-        refreshLocalFileTable();
     }
 
     private void initFileTable(TableView<FileInfo> table) {
@@ -82,11 +88,13 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         Network.getInstance().getSocketChannel().writeAndFlush(CloudProtocol.getFilesStructureRequest());
     }
 
-    public void refreshLocalFileTable() {
+    private void refreshLocalFileTable(Path path) {
         try {
-            Files.list(clientDir).forEach(p -> localFilesTable.getItems().add(new FileInfo(p.toFile())));
+            localPathTextField.setText(path.normalize().toAbsolutePath().toString());
+            localFilesTable.getItems().clear();
+            Files.list(path).forEach(p -> localFilesTable.getItems().add(new FileInfo(p)));
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -102,6 +110,21 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         } else if (source.equals(downloadButton)) {
             if (remoteFilesTable.getSelectionModel().getSelectedItem() != null) {
                 sendFileRequest(remoteFilesTable.getSelectionModel().getSelectedItem().getFilename());
+            }
+        } else if (source.equals(localUpButton)) {
+            Path path = Paths.get(localPathTextField.getText()).getParent();
+            if (path != null) {
+                refreshLocalFileTable(path);
+            }
+        }
+    }
+
+    private void onTableClicked(MouseEvent event) {
+        if (event.getClickCount() == 2) {
+            Path path = Paths.get(localPathTextField.getText(),
+                    ((TableView<FileInfo>)event.getSource()).getSelectionModel().getSelectedItem().getFilename());
+            if (Files.isDirectory(path)) {
+                refreshLocalFileTable(path);
             }
         }
     }
@@ -129,7 +152,9 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
 
     @Override
     public void onReceiveFile(FileInfo fileInfo) {
-        refreshLocalFileTable();
+        if (localPathTextField.getText().equals(clientDir.normalize().toAbsolutePath().toString())) {
+            refreshLocalFileTable(Paths.get(localPathTextField.getText()));
+        }
     }
 
     @Override
@@ -157,5 +182,11 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
                 }
             });
         }
+    }
+
+    @Override
+    public void onExit() {
+        onMessageReceive("Server stopped!");
+        Network.getInstance().stop();
     }
 }

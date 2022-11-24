@@ -51,6 +51,8 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
                         analyzer.startOperation(cmd);
                         function = analyzer::acceptMessage;
                         break;
+                    case CloudProtocol.EXIT:
+                        analyzer.getListener().onExit();
                     default:
                         status = Status.FREE;
                         buf.clear();

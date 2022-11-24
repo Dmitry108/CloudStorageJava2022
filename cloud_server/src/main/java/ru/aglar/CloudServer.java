@@ -7,6 +7,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -96,5 +97,10 @@ public class CloudServer implements ResponseListener {
             e.printStackTrace();
             //отобразить ошибку
         }
+    }
+
+    @Override
+    public void onExit() {
+        channel.close();
     }
 }

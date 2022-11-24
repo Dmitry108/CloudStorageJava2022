@@ -77,6 +77,7 @@ public class Network {
     }
 
     public void stop() {
+        socketChannel.writeAndFlush(CloudProtocol.exit());
         socketChannel.close();
     }
 
