@@ -12,7 +12,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.util.Callback;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -21,8 +20,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 public class CloudController implements Initializable, EventHandler<ActionEvent>, ResponseListener {
     @FXML public TableView<FileInfo> localFilesTable;
@@ -52,7 +49,7 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         downloadButton.setOnAction(this);
         initFileTable(localFilesTable);
         initFileTable(remoteFilesTable);
-        fillLocalFileTable();
+        refreshLocalFileTable();
     }
 
     private void initFileTable(TableView<FileInfo> table) {
@@ -85,7 +82,7 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         Network.getInstance().getSocketChannel().writeAndFlush(CloudProtocol.getFilesStructureRequest());
     }
 
-    public void fillLocalFileTable() {
+    public void refreshLocalFileTable() {
         try {
             Files.list(clientDir).forEach(p -> localFilesTable.getItems().add(new FileInfo(p.toFile())));
         } catch (IOException e) {
@@ -100,24 +97,25 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
             exit();
         } else if (source.equals(sendButton)) {
             if (localFilesTable.getSelectionModel().getSelectedItem() != null) {
-                sendFile(clientDir.resolve(localFilesTable.getSelectionModel().getSelectedItem().getFilename()));
+                sendFile(localFilesTable.getSelectionModel().getSelectedItem().getFilename());
+            }
+        } else if (source.equals(downloadButton)) {
+            if (remoteFilesTable.getSelectionModel().getSelectedItem() != null) {
+                sendFileRequest(remoteFilesTable.getSelectionModel().getSelectedItem().getFilename());
             }
         }
     }
 
-    private void sendFile(Path file) {
-        boolean isExists = remoteFilesTable.getItems().stream()
-                .anyMatch(fileInfo -> fileInfo.getFilename().equals(file.getFileName().toString()));
-        if (isExists) {
-            onMessageReceive("File with such name already exists on server!");
-        } else {
-            Network.getInstance().sendFile(file, new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    refreshRemoteFileTable();
-                }
-            });
+    private void sendFileRequest(String filename) {
+        try {
+            if (Files.list(clientDir).anyMatch(file -> file.getFileName().toString().equals(filename))) {
+                onMessageReceive(String.format("File %s already exists!", filename));
+                return;
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
+        Network.getInstance().sendFileRequest(filename);
     }
 
     private void showException(String message) {
@@ -130,13 +128,8 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     }
 
     @Override
-    public void onSuccess(Object response, Class<?> responseType) {
-
-    }
-
-    @Override
     public void onReceiveFile(FileInfo fileInfo) {
-
+        refreshLocalFileTable();
     }
 
     @Override
@@ -147,5 +140,22 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @Override
     public void onFileStructureReceive(List<FileInfo> filesList) {
         fillRemoteFileTable(filesList);
+    }
+
+    @Override
+    public void sendFile(String filename) {
+        Path file = clientDir.resolve(filename);
+        boolean isExists = remoteFilesTable.getItems().stream()
+                .anyMatch(fileInfo -> fileInfo.getFilename().equals(file.getFileName().toString()));
+        if (isExists) {
+            onMessageReceive("File with such name already exists on server!");
+        } else {
+            Network.getInstance().sendFile(file, new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    refreshRemoteFileTable();
+                }
+            });
+        }
     }
 }

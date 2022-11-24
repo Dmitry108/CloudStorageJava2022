@@ -1,10 +1,8 @@
 package ru.aglar;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -60,15 +58,14 @@ public class CloudServer implements ResponseListener {
         new CloudServer().start();
     }
 
-    @Override
-    public void onSuccess(Object response, Class<?> responseType) {
+    private void sendMessage(String message) {
+        channel.pipeline().writeAndFlush(CloudProtocol.transferMessageToByteBuf(message));
 
     }
 
     @Override
     public void onReceiveFile(FileInfo fileInfo) {
-        channel.pipeline().writeAndFlush(CloudProtocol.transferMessageToByteBuf(
-                String.format("File %s received on server!", fileInfo.getFilename())));
+        sendMessage(String.format("File %s received on server!", fileInfo.getFilename()));
     }
 
     @Override
@@ -79,5 +76,25 @@ public class CloudServer implements ResponseListener {
     @Override
     public void onFileStructureReceive(List<FileInfo> filesList) {
 
+    }
+
+    @Override
+    public void sendFile(String filename) {
+        Path file = STORAGE_PATH.resolve(filename);
+        if (!Files.exists(file)) {
+            sendMessage(String.format("File %s doesn't exist!", filename));
+            return;
+        }
+//        подумать над унификацией кода клиента и сервера
+        try {
+            FileRegion region = new DefaultFileRegion(file.toFile(), 0, Files.size(file));
+            ByteBuf header = CloudProtocol.getHeaderForSendingFile(file);
+            channel.write(header);
+            ChannelFuture future = channel.writeAndFlush(region);
+            future.addListeners(channelFuture -> System.out.println("File has been sent to client"));
+        } catch (IOException e) {
+            e.printStackTrace();
+            //отобразить ошибку
+        }
     }
 }

@@ -21,9 +21,11 @@ import java.util.stream.Collectors;
 public class CloudProtocol {
     public final static byte ACCEPT_FILE = 11;
     //протокол передачи файла: 1 байт команда -> 4 байта размер имени файла -> имя файла -> 8 байт размер файла -> файл
-    public final static byte FILES_STRUCTURE_REQUEST = 12;
+    public final static byte FILE_REQUEST = 12;
+    //протокол передачи файла: 1 байт команда -> 4 байта размер имени файла -> имя файла
+    public final static byte FILES_STRUCTURE_REQUEST = 13;
     //протокол запроса структуры файлов: 1 байт команда
-    public final static byte FILES_STRUCTURE_RESPONSE = 13;
+    public final static byte FILES_STRUCTURE_RESPONSE = 14;
     //протокол передачи структуры данных: 1 байт команда -> 4 байта количество файлов -> 4 байта размер имени файла
     // -> имя файла -> 8 байт размер файла -> ...
     public final static byte MESSAGE = 21;
@@ -62,6 +64,14 @@ public class CloudProtocol {
     public static ByteBuf getFilesStructureRequest() {
         ByteBuf buf = ByteBufAllocator.DEFAULT.directBuffer(1);
         buf.writeByte(FILES_STRUCTURE_REQUEST);
+        return buf;
+    }
+
+    public static ByteBuf getFilesRequest(String filename) {
+        byte[] filenameBytes = filename.getBytes(StandardCharsets.UTF_8);
+        int length = filenameBytes.length;
+        ByteBuf buf = ByteBufAllocator.DEFAULT.directBuffer(1 + 4 + length);
+        buf.writeByte(FILE_REQUEST).writeInt(length).writeBytes(filenameBytes);
         return buf;
     }
 }
