@@ -36,6 +36,10 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
                         analyzer.startOperation(cmd);
                         function = analyzer::acceptFile;
                         break;
+                    case CloudProtocol.FILE_REQUEST:
+                        analyzer.startOperation(cmd);
+                        function = analyzer::fileRequest;
+                        break;
                     case CloudProtocol.FILES_STRUCTURE_REQUEST:
                         sendFileStructure(ctx);
                         break;
@@ -47,10 +51,12 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
                         analyzer.startOperation(cmd);
                         function = analyzer::acceptMessage;
                         break;
+                    case CloudProtocol.EXIT:
+                        analyzer.getListener().onExit();
                     default:
                         status = Status.FREE;
                         buf.clear();
-                        ctx.writeAndFlush(CloudProtocol.transferMessageToByteBuf("Unknown format on server!" + cmd));
+                        ctx.writeAndFlush(CloudProtocol.transferMessageToByteBuf("Unknown format! " + cmd));
                 }
             }
             if (status == Status.BUSY) {

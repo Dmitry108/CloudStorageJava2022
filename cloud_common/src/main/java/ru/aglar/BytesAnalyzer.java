@@ -27,6 +27,10 @@ public class BytesAnalyzer {
         this.expectedCountBytes = expectedCountBytes;
     }
 
+    public ResponseListener getListener() {
+        return listener;
+    }
+
     public boolean acceptFile(ByteBuf buf) {
         if (stepOfOperation == 1) {
             setControl(2, buf.readInt() + 8);
@@ -77,6 +81,9 @@ public class BytesAnalyzer {
         } else if (cmd == CloudProtocol.FILES_STRUCTURE_RESPONSE) {
             expectedCountBytes = 4;
             object = new ArrayList<FileInfo>();
+        } if (cmd == CloudProtocol.FILE_REQUEST) {
+            expectedCountBytes = 4;
+            object = new FileInfo();
         }
     }
 
@@ -117,6 +124,19 @@ public class BytesAnalyzer {
                 return true;
             }
             setControl(2, 4);
+        }
+        return false;
+    }
+
+    public boolean fileRequest(ByteBuf buf) {
+        if (stepOfOperation == 1) {
+            expectedCountBytes = buf.readInt();
+            setControl(2, expectedCountBytes);
+        } else if (stepOfOperation == 2) {
+            byte[] filenameBytes = new byte[(int) expectedCountBytes];
+            buf.readBytes(filenameBytes);
+            listener.sendFile(new String(filenameBytes, StandardCharsets.UTF_8));
+            return true;
         }
         return false;
     }

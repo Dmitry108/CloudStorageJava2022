@@ -70,10 +70,16 @@ public class Network {
             e.printStackTrace();
             //отобразить ошибку
         }
+    }
 
+    public void sendFileRequest(String filename) {
+        socketChannel.writeAndFlush(CloudProtocol.getFilesRequest(filename));
     }
 
     public void stop() {
+        socketChannel.writeAndFlush(CloudProtocol.exit());
         socketChannel.close();
     }
+
+
 }
