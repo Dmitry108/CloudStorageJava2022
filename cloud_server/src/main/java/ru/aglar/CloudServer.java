@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CloudServer implements ResponseListener {
     private final static Path STORAGE_PATH = Paths.get("server_storage");
@@ -72,6 +73,23 @@ public class CloudServer implements ResponseListener {
     @Override
     public void onMessageReceive(String message) {
         System.out.println(message);
+    }
+
+    @Override
+    public void onFileStructureRequest() {
+        try {
+            List<FileInfo> files = Files.list(STORAGE_PATH) //storagePath
+                    .filter(p -> !Files.isDirectory(p))
+                    .map(p -> new FileInfo(p.getFileName().toString(), p.toFile().length()))
+                    .collect(Collectors.toList());
+            channel.write(CloudProtocol.getHeaderOfFileStructure(files.size()));
+            files.forEach(fileInfo -> {
+                channel.write(CloudProtocol.getFileInfoByteBuf(fileInfo));
+            });
+            channel.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

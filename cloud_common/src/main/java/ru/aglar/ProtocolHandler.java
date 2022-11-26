@@ -17,12 +17,10 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
 
     private Status status = Status.FREE;
 
-    private final Path storagePath;
     private final BytesAnalyzer analyzer;
     private Function<ByteBuf, Boolean> function;
 
     public ProtocolHandler(Path storagePath, ResponseListener listener) {
-        this.storagePath = storagePath;
         this.analyzer = new BytesAnalyzer(storagePath, listener);
     }
 
@@ -43,7 +41,8 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
                         function = analyzer::fileRequest;
                         break;
                     case CloudProtocol.FILES_STRUCTURE_REQUEST:
-                        sendFileStructure(ctx);
+                        analyzer.getListener().onFileStructureRequest();
+                        status = Status.FREE;
                         break;
                     case CloudProtocol.FILES_STRUCTURE_RESPONSE:
                         analyzer.startOperation(cmd);
@@ -82,19 +81,6 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
             }
         }
         buf.release();
-    }
-
-    private void sendFileStructure(ChannelHandlerContext ctx) throws IOException {
-        List<FileInfo> files = Files.list(storagePath)
-                .filter(p -> !Files.isDirectory(p))
-                .map(p -> new FileInfo(p.getFileName().toString(), p.toFile().length()))
-                .collect(Collectors.toList());
-        ctx.write(CloudProtocol.getHeaderOfFileStructure(files.size()));
-        files.forEach(fileInfo -> {
-            ctx.write(CloudProtocol.getFileInfoByteBuf(fileInfo));
-        });
-        ctx.flush();
-        status = Status.FREE;
     }
 
     @Override

@@ -54,8 +54,8 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         exitMenuItem.setOnAction(this);
         sendButton.setOnAction(this);
         downloadButton.setOnAction(this);
-//        localUpButton.setOnAction(this);
-//        localFilesTable.setOnMouseClicked(this::onTableClicked);
+        localUpButton.setOnAction(this);
+        localFilesTable.setOnMouseClicked(this::onTableClicked);
         deleteLocalFileButton.setOnAction(this);
         deleteRemoteFileButton.setOnAction(this);
         initFileTable(localFilesTable);
@@ -93,13 +93,15 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     }
 
     private void refreshLocalFileTable(Path path) {
-        try {
-            localPathTextField.setText(path.normalize().toAbsolutePath().toString());
-            localFilesTable.getItems().clear();
-            Files.list(path).forEach(p -> localFilesTable.getItems().add(new FileInfo(p)));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        localPathTextField.setText(path.normalize().toAbsolutePath().toString());
+        localFilesTable.getItems().clear();
+        Platform.runLater(() -> {
+            try {
+                Files.list(path).forEach(p -> localFilesTable.getItems().add(new FileInfo(p)));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Override
@@ -180,9 +182,9 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
 
     @Override
     public void onReceiveFile(FileInfo fileInfo) {
-        if (localPathTextField.getText().equals(clientDir.normalize().toAbsolutePath().toString())) {
-            refreshLocalFileTable(Paths.get(localPathTextField.getText()));
-        }
+//        if (localPathTextField.getText().equals(clientDir.normalize().toAbsolutePath().toString())) {
+            refreshLocalFileTable(clientDir);
+//        }
     }
 
     @Override
@@ -191,13 +193,16 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     }
 
     @Override
+    public void onFileStructureRequest() { }
+
+    @Override
     public void onFileStructureReceive(List<FileInfo> filesList) {
         fillRemoteFileTable(filesList);
     }
 
     @Override
     public void sendFile(String filename) {
-        Path file = clientDir.resolve(filename);
+        Path file = Paths.get(localPathTextField.getText(), filename);
         boolean isExists = remoteFilesTable.getItems().stream()
                 .anyMatch(fileInfo -> fileInfo.getFilename().equals(file.getFileName().toString()));
         if (isExists) {

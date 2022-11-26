@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 
 <?import javafx.geometry.Insets?>
-<VBox prefHeight="400.0" prefWidth="600.0"
+<VBox prefHeight="400.0" prefWidth="800.0"
       xmlns="http://javafx.com/javafx/11.0.2" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="ru.aglar.CloudController">
     <MenuBar>
@@ -13,7 +13,7 @@
         </Menu>
     </MenuBar>
     <HBox alignment="CENTER" spacing="5">
-        <VBox>
+        <VBox HBox.hgrow="ALWAYS">
             <Label text="Local files"/>
             <HBox>
                 <ComboBox fx:id="localDiskComboBox"/>
@@ -29,7 +29,7 @@
             <Button fx:id="sendButton" text="&gt;&gt;" />
             <Button fx:id="downloadButton" text="&lt;&lt;"/>
         </VBox>
-        <VBox>
+        <VBox HBox.hgrow="ALWAYS">
             <Label text="Cloud files"/>
             <TextField fx:id="remoteAddressTextField" HBox.hgrow="ALWAYS" editable="false"/>
             <TableView fx:id="remoteFilesTable" VBox.vgrow="ALWAYS" />
