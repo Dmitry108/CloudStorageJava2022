@@ -8,4 +8,6 @@ public interface ResponseListener {
     void onFileStructureReceive(List<FileInfo> filesList);
     void sendFile(String filename);
     void onExit();
+    void deleteFile(String filename);
+    void onChangeFileStructure();
 }

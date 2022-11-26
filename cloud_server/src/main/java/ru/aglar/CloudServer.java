@@ -103,4 +103,19 @@ public class CloudServer implements ResponseListener {
     public void onExit() {
         channel.close();
     }
+
+    public void deleteFile(String filename) {
+        try {
+            Path path = STORAGE_PATH.resolve(filename);
+            Files.deleteIfExists(path);
+            channel.writeAndFlush(CloudProtocol.getMessageAboutChangingFileStructure());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onChangeFileStructure() {
+
+    }
 }

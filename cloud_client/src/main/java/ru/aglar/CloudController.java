@@ -29,6 +29,8 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @FXML public ComboBox<String> localDiskComboBox;
     @FXML public TextField localPathTextField;
     @FXML public Button localUpButton;
+    @FXML public Button deleteLocalFileButton;
+    @FXML public Button deleteRemoteFileButton;
 
     private Path clientDir;
 
@@ -54,6 +56,8 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         downloadButton.setOnAction(this);
 //        localUpButton.setOnAction(this);
 //        localFilesTable.setOnMouseClicked(this::onTableClicked);
+        deleteLocalFileButton.setOnAction(this);
+        deleteRemoteFileButton.setOnAction(this);
         initFileTable(localFilesTable);
         initFileTable(remoteFilesTable);
     }
@@ -116,6 +120,30 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
             if (path != null) {
                 refreshLocalFileTable(path);
             }
+        } else if (source.equals(deleteLocalFileButton)) {
+            if (localFilesTable.getSelectionModel().getSelectedItem() != null) {
+                deleteLocalFile();
+            }
+        } else if (source.equals(deleteRemoteFileButton)) {
+            if (remoteFilesTable.getSelectionModel().getSelectedItem() != null) {
+                deleteRemoteFile();
+            }
+        }
+    }
+
+    private void deleteRemoteFile() {
+        String filename = remoteFilesTable.getSelectionModel().getSelectedItem().getFilename();
+        Network.getInstance().sendDeleteFileRequest(filename);
+    }
+
+    private void deleteLocalFile() {
+        try {
+            Path path = Paths.get(localPathTextField.getText(),
+                    localFilesTable.getSelectionModel().getSelectedItem().getFilename());
+            Files.deleteIfExists(path);
+            refreshLocalFileTable(path.getParent());
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -188,5 +216,13 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     public void onExit() {
         onMessageReceive("Server stopped!");
         Network.getInstance().stop();
+    }
+
+    @Override
+    public void deleteFile(String filename) { }
+
+    @Override
+    public void onChangeFileStructure() {
+        refreshRemoteFileTable();
     }
 }

@@ -25,11 +25,16 @@ public class CloudProtocol {
     //протокол передачи файла: 1 байт команда -> 4 байта размер имени файла -> имя файла
     public final static byte FILES_STRUCTURE_REQUEST = 13;
     //протокол запроса структуры файлов: 1 байт команда
-    public final static byte FILES_STRUCTURE_RESPONSE = 14;
+
     //протокол передачи структуры данных: 1 байт команда -> 4 байта количество файлов -> 4 байта размер имени файла
     // -> имя файла -> 8 байт размер файла -> ...
-    public final static byte MESSAGE = 21;
+    public final static byte FILES_STRUCTURE_RESPONSE = 14;
+    //протокол запроса на удаление файла: 1 байт команда -> размер имени файла -> имя файла
+    public final static byte DELETE_FILE_REQUEST = 15;
     //протокол: 1 байт команда -> 4 байта размер сообщения -> сообщение
+    public final static byte MESSAGE = 21;
+    //протокол сообщения об изменении в хранилище файлов
+    public final static byte CHANGING_FILES = 22;
     public final static byte EXIT = 31;
 
     public static ByteBuf transferMessageToByteBuf(String message) {
@@ -79,5 +84,17 @@ public class CloudProtocol {
     public static ByteBuf exit() {
         return ByteBufAllocator.DEFAULT.buffer().writeByte(EXIT);
 
+    }
+
+    public static ByteBuf getDeleteFileRequest(String filename) {
+        byte[] filenameBytes = filename.getBytes(StandardCharsets.UTF_8);
+        int length = filenameBytes.length;
+        ByteBuf buf = ByteBufAllocator.DEFAULT.directBuffer(1 + 4 + length);
+        buf.writeByte(DELETE_FILE_REQUEST).writeInt(length).writeBytes(filenameBytes);
+        return buf;
+    }
+
+    public static ByteBuf getMessageAboutChangingFileStructure() {
+        return ByteBufAllocator.DEFAULT.buffer().writeByte(CHANGING_FILES);
     }
 }

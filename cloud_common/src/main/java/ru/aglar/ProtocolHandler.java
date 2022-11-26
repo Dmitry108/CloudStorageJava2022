@@ -7,6 +7,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -51,8 +53,18 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
                         analyzer.startOperation(cmd);
                         function = analyzer::acceptMessage;
                         break;
+                    case CloudProtocol.DELETE_FILE_REQUEST:
+                        analyzer.startOperation(cmd);
+                        function = analyzer::deleteFileRequest;
+                        break;
+                    case CloudProtocol.CHANGING_FILES:
+                        analyzer.getListener().onChangeFileStructure();
+                        status = Status.FREE;
+                        break;
                     case CloudProtocol.EXIT:
                         analyzer.getListener().onExit();
+                        status = Status.FREE;
+                        break;
                     default:
                         status = Status.FREE;
                         buf.clear();

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class BytesAnalyzer {
@@ -81,9 +82,12 @@ public class BytesAnalyzer {
         } else if (cmd == CloudProtocol.FILES_STRUCTURE_RESPONSE) {
             expectedCountBytes = 4;
             object = new ArrayList<FileInfo>();
-        } if (cmd == CloudProtocol.FILE_REQUEST) {
+        } else if (cmd == CloudProtocol.FILE_REQUEST) {
             expectedCountBytes = 4;
             object = new FileInfo();
+        } else if (cmd == CloudProtocol.DELETE_FILE_REQUEST) {
+            expectedCountBytes = 4;
+            object = null;
         }
     }
 
@@ -136,6 +140,19 @@ public class BytesAnalyzer {
             byte[] filenameBytes = new byte[(int) expectedCountBytes];
             buf.readBytes(filenameBytes);
             listener.sendFile(new String(filenameBytes, StandardCharsets.UTF_8));
+            return true;
+        }
+        return false;
+    }
+
+    public boolean deleteFileRequest(ByteBuf buf) {
+        if (stepOfOperation == 1) {
+            expectedCountBytes = buf.readInt();
+            setControl(2, expectedCountBytes);
+        } else if (stepOfOperation == 2) {
+            byte[] filenameBytes = new byte[(int) expectedCountBytes];
+            buf.readBytes(filenameBytes);
+            listener.deleteFile(new String(filenameBytes, StandardCharsets.UTF_8));
             return true;
         }
         return false;

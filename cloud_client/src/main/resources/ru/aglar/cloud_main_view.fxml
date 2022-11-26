@@ -21,6 +21,9 @@
                 <Button fx:id="localUpButton" text="Up"/>
             </HBox>
             <TableView fx:id="localFilesTable" VBox.vgrow="ALWAYS"/>
+            <HBox>
+                <Button fx:id="deleteLocalFileButton" text="Delete"/>
+            </HBox>
         </VBox>
         <VBox alignment="CENTER" spacing="5">
             <Button fx:id="sendButton" text="&gt;&gt;" />
@@ -30,6 +33,9 @@
             <Label text="Cloud files"/>
             <TextField fx:id="remoteAddressTextField" HBox.hgrow="ALWAYS" editable="false"/>
             <TableView fx:id="remoteFilesTable" VBox.vgrow="ALWAYS" />
+            <HBox>
+                <Button fx:id="deleteRemoteFileButton" text="Delete"/>
+            </HBox>
         </VBox>
         <padding>
             <Insets bottom="10" top="10" right="10" left="10"/>

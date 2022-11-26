@@ -8,6 +8,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
@@ -81,5 +82,7 @@ public class Network {
         socketChannel.close();
     }
 
-
+    public void sendDeleteFileRequest(String filename) {
+        socketChannel.writeAndFlush(CloudProtocol.getDeleteFileRequest(filename));
+    }
 }
