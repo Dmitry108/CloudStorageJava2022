@@ -10,9 +10,11 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.MouseEvent;
 import javafx.util.Callback;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.*;
@@ -31,6 +33,7 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
     @FXML public Button localUpButton;
     @FXML public Button deleteLocalFileButton;
     @FXML public Button deleteRemoteFileButton;
+    @FXML public Button renameLocalFileButton;
 
     private Path clientDir;
 
@@ -58,13 +61,25 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         localFilesTable.setOnMouseClicked(this::onTableClicked);
         deleteLocalFileButton.setOnAction(this);
         deleteRemoteFileButton.setOnAction(this);
+        renameLocalFileButton.setOnAction(this);
         initFileTable(localFilesTable);
         initFileTable(remoteFilesTable);
+        localFilesTable.getColumns().get(0).setOnEditCommit(this::editLocalFilename);
+
     }
+
+
 
     private void initFileTable(TableView<FileInfo> table) {
         TableColumn<FileInfo, String> filenameColumn = new TableColumn<>("Name");
         filenameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getFilename()));
+        filenameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        filenameColumn.setOnEditCommit(new EventHandler<TableColumn.CellEditEvent<FileInfo, String>>() {
+            @Override
+            public void handle(TableColumn.CellEditEvent<FileInfo, String> event) {
+
+            }
+        });
         TableColumn<FileInfo, Long> sizeColumn = new TableColumn<>("Size");
         sizeColumn.setCellValueFactory(param -> new SimpleObjectProperty<Long>(param.getValue().getSize()));
         sizeColumn.setCellFactory(new Callback<TableColumn<FileInfo, Long>, TableCell<FileInfo, Long>>() {
@@ -81,6 +96,24 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         });
         table.getColumns().addAll(filenameColumn, sizeColumn);
         table.getSortOrder().add(sizeColumn);
+        table.setEditable(true);
+    }
+
+    private void editLocalFilename(TableColumn.CellEditEvent<FileInfo,?> event) {
+        if (localFilesTable.getItems().stream()
+                .anyMatch(fileInfo -> fileInfo.getFilename().equals(event.getNewValue()))) {
+            onMessageReceive(String.format("File with name %s exists", event.getNewValue()));
+            return;
+        }
+        File dir = new File(localPathTextField.getText());
+        File file = new File(dir, (String) event.getOldValue());
+        if (file.renameTo(new File(dir, (String) event.getNewValue()))) {
+            refreshLocalFileTable(dir.toPath());
+        }
+    }
+
+    public void editRemoteFilename(TableColumn.CellEditEvent<FileInfo, String> event) {
+
     }
 
     public void fillRemoteFileTable(List<FileInfo> files) {
@@ -129,6 +162,11 @@ public class CloudController implements Initializable, EventHandler<ActionEvent>
         } else if (source.equals(deleteRemoteFileButton)) {
             if (remoteFilesTable.getSelectionModel().getSelectedItem() != null) {
                 deleteRemoteFile();
+            }
+        } else if (source.equals(renameLocalFileButton)) {
+            if (localFilesTable.getSelectionModel().getSelectedItem() != null) {
+                localFilesTable.edit(localFilesTable.getSelectionModel().getSelectedIndex(),
+                        localFilesTable.getColumns().get(0));
             }
         }
     }

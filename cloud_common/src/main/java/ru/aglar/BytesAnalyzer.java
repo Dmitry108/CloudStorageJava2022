@@ -58,6 +58,9 @@ public class BytesAnalyzer {
                         return true;
                     }
                 }
+                if (buf.readableBytes() == 0) {
+                    buf.release();
+                }
                 expectedCountBytes = fileInfo.getSize() - counter;
             } catch (IOException e) {
                 //удалить остальные байты этого файла из буфера

@@ -23,6 +23,7 @@
             <TableView fx:id="localFilesTable" VBox.vgrow="ALWAYS"/>
             <HBox>
                 <Button fx:id="deleteLocalFileButton" text="Delete"/>
+                <Button fx:id="renameLocalFileButton" text="Rename"/>
             </HBox>
         </VBox>
         <VBox alignment="CENTER" spacing="5">
